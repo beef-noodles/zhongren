@@ -1,12 +1,18 @@
-use std::{collections::HashMap, error::Error, path::Path, env, fs::File, io::{self, BufRead}};
+use std::{
+    collections::HashMap,
+    env,
+    error::Error,
+    fs::File,
+    io::{self, BufRead},
+    path::Path,
+};
 
 use std::fs::OpenOptions;
 use std::io::Write;
 
-
 enum ArgTypes {
     FilePath,
-    ResultPath
+    ResultPath,
 }
 
 #[tokio::main]
@@ -19,16 +25,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = reqwest::Client::new();
     let lines = read_lines(file_path)?;
 
-
-    let mut stored_file = OpenOptions::new().append(true).open(stored_path).expect("Should create file before running");
+    let mut stored_file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(stored_path)
+        .expect("Should create file before running");
 
     for line in lines {
         if let Ok(ip) = line {
             let result = get_result(&client, &ip).await?;
             let ll = format!("{}, {:?}\n", ip, result);
-            stored_file.write_all(ll.as_bytes()).expect("write failed for");
-        }      
-    }   
+            stored_file
+                .write_all(ll.as_bytes())
+                .expect("write failed for");
+        }
+    }
     Ok(())
 }
 
@@ -43,14 +54,18 @@ fn get_file_path(arg_type: ArgTypes) -> String {
 }
 
 fn read_lines<P>(file_path: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>{
+where
+    P: AsRef<Path>,
+{
     let file = File::open(file_path)?;
     Ok(io::BufReader::new(file).lines())
 }
 
-async fn get_result(client: &reqwest::Client, line: &str) -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let response = client.get("https://httpbin.org/ip")
-    .send();
+async fn get_result(
+    client: &reqwest::Client,
+    line: &str,
+) -> Result<HashMap<String, String>, Box<dyn Error>> {
+    let response = client.get("https://httpbin.org/ip").send();
     let resp = match response.await {
         Ok(it) => it.json::<HashMap<String, String>>().await?,
         Err(err) => panic!("请求出错，{:?}", err),
